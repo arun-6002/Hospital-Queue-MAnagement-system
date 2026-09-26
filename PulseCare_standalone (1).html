@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PulseCare — Hospital Queue Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg: #060a14;
+  --bg-grad: radial-gradient(circle at 15% 0%, #0d1a2b 0%, #060a14 45%), radial-gradient(circle at 90% 20%, #0b1f24 0%, #060a14 55%);
+  --panel: rgba(255,255,255,0.045);
+  --panel-border: rgba(255,255,255,0.09);
+  --panel-hover: rgba(255,255,255,0.07);
+  --teal: #2dd4bf;
+  --teal-dim: #0f766e;
+  --blue: #38bdf8;
+  --text: #e7edf5;
+  --text-dim: #93a3b8;
+  --text-faint: #5b6b82;
+  --sev-1: #4ade80;
+  --sev-2: #a3e635;
+  --sev-3: #fbbf24;
+  --sev-4: #fb923c;
+  --sev-5: #f87171;
+  --radius: 16px;
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background: var(--bg-grad), var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* ============ TOPBAR ============ */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--panel-border);
+  background: rgba(6,10,20,0.6);
+  backdrop-filter: blur(14px);
+  position: sticky; top:0; z-index:20;
+  flex-wrap: wrap; gap:16px;
+}
+.brand{display:flex; align-items:center; gap:14px;}
+.brand-pulse{
+  width:48px;height:48px;border-radius:14px;
+  background: linear-gradient(135deg, var(--teal-dim), #0a2530);
+  border:1px solid var(--panel-border);
+  display:flex;align-items:center;justify-content:center;
+}
+.ekg{width:36px;height:16px;overflow:visible;}
+.ekg polyline{fill:none;stroke:var(--teal);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  filter: drop-shadow(0 0 4px var(--teal));
+  stroke-dasharray: 120; stroke-dashoffset: 120;
+  animation: draw-ekg 2.4s ease-in-out infinite;
+}
+@keyframes draw-ekg{ 0%{stroke-dashoffset:120;} 60%{stroke-dashoffset:0;} 100%{stroke-dashoffset:-10;} }
+.brand-text h1{font-family:var(--font-display); font-weight:800; font-size:22px; margin:0; letter-spacing:-0.02em;}
+.brand-text p{margin:2px 0 0; font-size:12.5px; color:var(--text-dim);}
+.dsa-tag{color:var(--teal);}
+
+.stats-bar{display:flex; gap:28px;}
+.stat{display:flex; flex-direction:column; align-items:flex-end; min-width:64px;}
+.stat-value{font-family:var(--font-display); font-size:24px; font-weight:700; color:var(--teal);}
+.stat-value small{font-size:13px; color:var(--text-dim);}
+.stat-label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.06em;}
+
+/* ============ LAYOUT ============ */
+.layout{
+  display:grid;
+  grid-template-columns: 380px minmax(0,1fr);
+  gap:20px;
+  padding:24px 32px 60px;
+  align-items:start;
+}
+.col{display:flex; flex-direction:column; gap:20px;}
+
+.panel{
+  background: var(--panel);
+  border:1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding:20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+}
+.panel-title{
+  font-family:var(--font-display); font-size:16px; font-weight:700; margin:0 0 4px;
+  display:flex; align-items:center; gap:10px;
+}
+.panel-sub{font-size:12.5px; color:var(--text-dim); margin:0 0 14px; line-height:1.5;}
+.mono-tag{
+  font-family:var(--font-mono); font-size:10.5px; color:var(--teal);
+  background: rgba(45,212,191,0.1); border:1px solid rgba(45,212,191,0.25);
+  padding:2px 8px; border-radius:20px;
+}
+
+/* ============ FORM ============ */
+.form-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px;}
+.form-grid label{display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-dim); min-width:0;}
+.form-grid input, .form-grid select{
+  width:100%; min-width:0; max-width:100%;
+  background: rgba(255,255,255,0.04); border:1px solid var(--panel-border);
+  border-radius:8px; padding:9px 10px; color:var(--text); font-family:var(--font-body); font-size:13.5px;
+}
+.form-grid input[type="range"]{padding:0; height:22px;}
+.form-grid input:focus, .form-grid select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+.full-span{grid-column: 1 / -1;}
+#severityWrap{grid-column: 1/-1;}
+.sev-badge{
+  align-self:flex-start; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; margin-top:4px;
+  font-family:var(--font-mono);
+}
+.sev-1{background:rgba(74,222,128,.15); color:var(--sev-1);}
+.sev-2{background:rgba(163,230,53,.15); color:var(--sev-2);}
+.sev-3{background:rgba(251,191,36,.15); color:var(--sev-3);}
+.sev-4{background:rgba(251,146,60,.15); color:var(--sev-4);}
+.sev-5{background:rgba(248,113,113,.15); color:var(--sev-5);}
+
+.btn{
+  font-family:var(--font-body); font-weight:600; font-size:13px; border:none; cursor:pointer;
+  padding:10px 16px; border-radius:9px; transition: transform .15s ease, opacity .15s ease;
+}
+.btn:hover{transform: translateY(-1px);}
+.btn:active{transform: translateY(0);}
+.btn-primary{background: linear-gradient(135deg, var(--teal), #14b8a6); color:#052321; margin-top:4px;}
+.btn-accent{background: rgba(56,189,248,0.14); color:var(--blue); border:1px solid rgba(56,189,248,0.35);}
+.btn-ghost{background: transparent; color:var(--text-dim); border:1px solid var(--panel-border);}
+.action-row{display:flex; gap:10px; margin-top:14px;}
+
+/* ============ DOCTOR CABINS ============ */
+.cabins{display:flex; flex-direction:column; gap:10px;}
+.cabin-card{
+  display:flex; justify-content:space-between; align-items:center;
+  background: rgba(255,255,255,0.03); border:1px solid var(--panel-border);
+  border-radius:10px; padding:10px 12px; font-size:12.5px;
+}
+.cabin-card.busy{border-color: rgba(251,191,36,.35);}
+.cabin-card.free{border-color: rgba(74,222,128,.3);}
+.cabin-name{font-weight:600;}
+.cabin-specialty{color:var(--text-faint); font-size:11px;}
+.cabin-status{font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px;}
+.cabin-status.free{background:rgba(74,222,128,.14); color:var(--sev-1);}
+.cabin-status.busy{background:rgba(251,191,36,.14); color:var(--sev-3);}
+
+/* ============ TERMINAL ============ */
+.terminal{
+  font-family:var(--font-mono); font-size:11.5px; line-height:1.8;
+  background: #030509; border:1px solid var(--panel-border); border-radius:10px;
+  padding:12px; max-height:220px; overflow-y:auto; color:#8fd6c9;
+}
+.terminal div{white-space:pre-wrap; opacity:0; animation: fade-in .3s forwards;}
+@keyframes fade-in{ to{opacity:1;} }
+.terminal .t-time{color:var(--text-faint); margin-right:6px;}
+
+/* ============ VISUALIZER ============ */
+.visualizer{min-height:560px;}
+.tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid var(--panel-border); padding-bottom:14px;}
+.tab{
+  background:transparent; border:1px solid var(--panel-border); color:var(--text-dim);
+  font-family:var(--font-body); font-size:12.5px; font-weight:600; padding:8px 14px;
+  border-radius:20px; cursor:pointer; transition: all .15s ease;
+}
+.tab:hover{color:var(--text); border-color: rgba(255,255,255,0.2);}
+.tab.active{background: linear-gradient(135deg, var(--teal-dim), #0a2530); color:#fff; border-color: var(--teal);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block; animation: fade-in .25s ease;}
+
+.viz-svg{width:100%; height:380px; background: rgba(0,0,0,0.18); border-radius:12px; border:1px solid var(--panel-border);}
+.bst-controls{display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; min-width:0;}
+.bst-controls input, .bst-controls select{
+  background: rgba(255,255,255,0.04); border:1px solid var(--panel-border); border-radius:8px;
+  padding:8px 10px; color:var(--text); font-size:13px; font-family:var(--font-body);
+}
+.bst-controls label{display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--text-dim);}
+
+/* SVG element classes (populated dynamically) */
+.node-circle{stroke-width:2; transition: all .3s ease;}
+.node-text{font-family:var(--font-mono); font-size:11px; fill:#fff; text-anchor:middle; pointer-events:none;}
+.node-sub{font-family:var(--font-mono); font-size:9px; fill:var(--text-dim); text-anchor:middle;}
+.edge-line{stroke:rgba(255,255,255,0.2); stroke-width:1.6;}
+.edge-label{font-family:var(--font-mono); font-size:10px; fill:var(--text-dim); text-anchor:middle;}
+.node-flash{ animation: flash-pulse .7s ease; }
+@keyframes flash-pulse{ 0%{filter:drop-shadow(0 0 0 var(--blue));} 40%{filter:drop-shadow(0 0 10px var(--blue));} 100%{filter:drop-shadow(0 0 0 transparent);} }
+.heap-root-pulse{ animation: heartbeat 1.1s ease-in-out infinite; }
+@keyframes heartbeat{ 0%,100%{transform:scale(1);} 20%{transform:scale(1.08);} 40%{transform:scale(1);} }
+
+table.dp-table{border-collapse:collapse; width:100%; font-family:var(--font-mono); font-size:11.5px; margin-top:10px;}
+table.dp-table th, table.dp-table td{border:1px solid var(--panel-border); padding:6px 8px; text-align:center;}
+table.dp-table th{background:rgba(255,255,255,0.04); color:var(--text-dim);}
+table.dp-table td.selected{background: rgba(45,212,191,0.16); color:var(--teal); font-weight:700;}
+.dp-summary{display:flex; gap:14px; margin-bottom:10px; flex-wrap:wrap;}
+.dp-summary .chip{background:rgba(56,189,248,.1); border:1px solid rgba(56,189,248,.3); color:var(--blue); padding:6px 12px; border-radius:20px; font-size:12px;}
+.patient-list-item{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  padding:8px 10px; border-bottom:1px solid var(--panel-border); font-size:12.5px;
+}
+.patient-list-item:last-child{border-bottom:none;}
+
+.footer{text-align:center; color:var(--text-faint); font-size:11.5px; padding:20px; border-top:1px solid var(--panel-border);}
+
+@media (max-width: 980px){
+  .layout{grid-template-columns:1fr;}
+  .stats-bar{gap:16px;}
+}
+
+</style>
+</head>
+<body>
+
+<!-- ===================== HEADER / LIVE STATS ===================== -->
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-pulse">
+      <svg viewBox="0 0 60 24" class="ekg"><polyline points="0,12 12,12 16,3 20,21 24,12 60,12" /></svg>
+    </span>
+    <div class="brand-text">
+      <h1>PulseCare</h1>
+      <p>Hospital Queue Management System <span class="dsa-tag">— DSA Visualizer</span></p>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><span class="stat-value" id="statTotal">0</span><span class="stat-label">Registered</span></div>
+    <div class="stat"><span class="stat-value" id="statTreated">0</span><span class="stat-label">Treated</span></div>
+    <div class="stat"><span class="stat-value" id="statWaiting">0</span><span class="stat-label">Waiting</span></div>
+    <div class="stat"><span class="stat-value" id="statWait">0<small>m</small></span><span class="stat-label">Avg. Wait</span></div>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ===================== LEFT: INTAKE + DOCTORS ===================== -->
+  <section class="col col-left">
+
+    <div class="panel" id="intakeDesk">
+      <h2 class="panel-title">Triage Intake Desk</h2>
+      <p class="panel-sub">Registers into the Emergency Max-Heap or the OPD Linked-List Queue, and indexes the patient in the BST.</p>
+      <form id="patientForm" class="form-grid">
+        <label>Name<input type="text" id="fName" placeholder="e.g. Ravi Kumar" required></label>
+        <label>Age<input type="number" id="fAge" min="0" max="120" placeholder="34" required></label>
+        <label>Gender
+          <select id="fGender"><option>Male</option><option>Female</option><option>Other</option></select>
+        </label>
+        <label>Symptom<input type="text" id="fSymptom" placeholder="Chest pain" required></label>
+        <label>Queue Type
+          <select id="fQueueType">
+            <option value="emergency">Emergency (Priority Heap)</option>
+            <option value="opd">OPD (FIFO Queue)</option>
+          </select>
+        </label>
+        <label id="severityWrap">Severity (1–5)
+          <input type="range" id="fSeverity" min="1" max="5" value="3">
+          <span id="severityOut" class="sev-badge sev-3">3 — Moderate</span>
+        </label>
+        <button type="submit" class="btn btn-primary full-span">Register Patient</button>
+      </form>
+      <div class="action-row">
+        <button id="btnConsult" class="btn btn-accent">Consult Next Patient</button>
+        <button id="btnUndo" class="btn btn-ghost">Undo Last Action</button>
+      </div>
+    </div>
+
+    <div class="panel" id="doctorPanel">
+      <h2 class="panel-title">Doctor Cabins</h2>
+      <div class="cabins" id="cabinList"></div>
+    </div>
+
+    <div class="panel" id="historyPanel">
+      <h2 class="panel-title">History Terminal <span class="mono-tag">ActionStack</span></h2>
+      <p class="panel-sub">push() / pop() log of every operation, most recent first.</p>
+      <div class="terminal" id="terminalLog"></div>
+    </div>
+
+  </section>
+
+  <!-- ===================== RIGHT: VISUALIZER ARENA ===================== -->
+  <section class="col col-right">
+    <div class="panel visualizer">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="heap">Emergency Heap</button>
+        <button class="tab" data-tab="list">OPD Linked List</button>
+        <button class="tab" data-tab="bst">Patient BST</button>
+        <button class="tab" data-tab="graph">Hospital Map</button>
+        <button class="tab" data-tab="dp">Kit Allocation (DP)</button>
+        <button class="tab" data-tab="sort">Sort Records</button>
+      </div>
+
+      <div class="tab-panel active" id="panel-heap">
+        <p class="panel-sub">Binary Max-Heap on severity + arrival order. Array-backed. O(log n) insert / extract.</p>
+        <svg id="heapSvg" class="viz-svg" viewBox="0 0 900 380"></svg>
+      </div>
+
+      <div class="tab-panel" id="panel-list">
+        <p class="panel-sub">Singly Linked List — FIFO OPD registration queue. O(1) enqueue/dequeue at head/tail.</p>
+        <svg id="listSvg" class="viz-svg" viewBox="0 0 900 220"></svg>
+      </div>
+
+      <div class="tab-panel" id="panel-bst">
+        <p class="panel-sub">Binary Search Tree indexed by Patient ID for O(log n) lookup.</p>
+        <div class="bst-controls">
+          <input type="number" id="bstSearchId" placeholder="Patient ID e.g. 1001">
+          <button id="btnBstSearch" class="btn btn-accent">Trace Search</button>
+        </div>
+        <svg id="bstSvg" class="viz-svg" viewBox="0 0 900 380"></svg>
+      </div>
+
+      <div class="tab-panel" id="panel-graph">
+        <p class="panel-sub">Hospital navigation graph — Dijkstra's shortest path from Reception.</p>
+        <div class="bst-controls">
+          <select id="graphDest"></select>
+          <button id="btnGraphRoute" class="btn btn-accent">Find Shortest Path</button>
+          <span id="graphResult" class="mono-tag"></span>
+        </div>
+        <svg id="graphSvg" class="viz-svg" viewBox="0 0 900 380"></svg>
+      </div>
+
+      <div class="tab-panel" id="panel-dp">
+        <p class="panel-sub">0/1 Knapsack DP — allocate limited medical kits to maximize total patient utility.</p>
+        <div class="bst-controls">
+          <label>Budget (kits)<input type="number" id="dpBudget" value="10" min="1" max="30"></label>
+          <button id="btnDpRun" class="btn btn-accent">Run Allocation</button>
+        </div>
+        <div id="dpOutput"></div>
+      </div>
+
+      <div class="tab-panel" id="panel-sort">
+        <p class="panel-sub">Sort the patient records database using Quick Sort or Merge Sort.</p>
+        <div class="bst-controls">
+          <select id="sortKey"><option value="severity">Severity</option><option value="age">Age</option><option value="id">Patient ID</option></select>
+          <select id="sortAlgo"><option value="quick">Quick Sort</option><option value="merge">Merge Sort</option></select>
+          <button id="btnSortRun" class="btn btn-accent">Sort Records</button>
+        </div>
+        <div id="sortOutput"></div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>PulseCare DSA Visualizer &middot; 11 core Data Structures &amp; Algorithms &middot; Built for course presentation</p>
+</footer>
+
+<script>
+/* =========================================================================
+   PulseCare Hospital Queue Management System
+   Core Data Structures & Algorithms — implemented from scratch in vanilla JS
+   (mirrors the C++ classes in cpp_version/)
+   ========================================================================= */
+
+/* ---------------------------- 1. PATIENT MODEL --------------------------- */
+let nextId = 1001;
+function makePatient(name, age, gender, symptom, severity, queueType){
+  return {
+    id: nextId++,
+    name, age, gender, symptom, severity: Number(severity),
+    queueType,                       // 'emergency' | 'opd'
+    status: 'waiting',               // waiting | in-consult | treated
+    doctorAssigned: null,
+    arrivalOrder: Date.now(),
+    estWait: Math.floor(Math.random()*40) + 5,   // minutes, simulated
+    dpCost: severity >= 5 ? 3 : severity >= 3 ? 2 : 1,
+    dpUtility: Number(severity) * 20
+  };
+}
+
+/* ---------------------------- 2. BINARY MAX-HEAP -------------------------
+   Array-backed priority queue. Priority = severity (desc), tie-broken by
+   earlier arrival. O(log n) insert / extract via heapifyUp / heapifyDown.  */
+class PriorityQueueHeap{
+  constructor(){ this.arr = []; }
+  size(){ return this.arr.length; }
+  isEmpty(){ return this.arr.length === 0; }
+  higherPriority(a,b){
+    if(a.severity !== b.severity) return a.severity > b.severity;
+    return a.arrivalOrder < b.arrivalOrder;
+  }
+  insert(patient){
+    this.arr.push(patient);
+    this.heapifyUp(this.arr.length-1);
+  }
+  heapifyUp(i){
+    while(i > 0){
+      const parent = Math.floor((i-1)/2);
+      if(this.higherPriority(this.arr[i], this.arr[parent])){
+        [this.arr[i], this.arr[parent]] = [this.arr[parent], this.arr[i]];
+        i = parent;
+      } else break;
+    }
+  }
+  extractMax(){
+    if(this.isEmpty()) return null;
+    const top = this.arr[0];
+    const last = this.arr.pop();
+    if(this.arr.length > 0){ this.arr[0] = last; this.heapifyDown(0); }
+    return top;
+  }
+  heapifyDown(i){
+    const n = this.arr.length;
+    while(true){
+      let largest = i, l = 2*i+1, r = 2*i+2;
+      if(l < n && this.higherPriority(this.arr[l], this.arr[largest])) largest = l;
+      if(r < n && this.higherPriority(this.arr[r], this.arr[largest])) largest = r;
+      if(largest === i) break;
+      [this.arr[i], this.arr[largest]] = [this.arr[largest], this.arr[i]];
+      i = largest;
+    }
+  }
+}
+
+/* ---------------------------- 3. SINGLY LINKED LIST QUEUE ----------------
+   FIFO queue for the OPD registration flow. O(1) enqueue (tail) / dequeue (head). */
+class ListNode{ constructor(data){ this.data = data; this.next = null; } }
+class StandardQueue{
+  constructor(){ this.head = null; this.tail = null; this.count = 0; }
+  size(){ return this.count; }
+  isEmpty(){ return this.count === 0; }
+  enqueue(patient){
+    const node = new ListNode(patient);
+    if(!this.head){ this.head = this.tail = node; }
+    else { this.tail.next = node; this.tail = node; }
+    this.count++;
+  }
+  dequeue(){
+    if(!this.head) return null;
+    const node = this.head;
+    this.head = this.head.next;
+    if(!this.head) this.tail = null;
+    this.count--;
+    return node.data;
+  }
+  toArray(){
+    const out = []; let cur = this.head;
+    while(cur){ out.push(cur.data); cur = cur.next; }
+    return out;
+  }
+}
+
+/* ---------------------------- 4. ACTION STACK -----------------------------
+   Classic LIFO stack backing the History Terminal / undo log. */
+class ActionStack{
+  constructor(){ this.items = []; }
+  push(entry){ this.items.push({ text: entry, time: new Date() }); }
+  pop(){ return this.items.pop() || null; }
+  peek(){ return this.items[this.items.length-1] || null; }
+  toArray(){ return this.items.slice().reverse(); }
+}
+
+/* ---------------------------- 5. BINARY SEARCH TREE -----------------------
+   Indexes patients by ID for O(log n) average lookup. Recursive insert/search. */
+class BSTNode{
+  constructor(patient){ this.patient = patient; this.left = null; this.right = null; }
+}
+class PatientBST{
+  constructor(){ this.root = null; }
+  insert(patient){ this.root = this._insert(this.root, patient); }
+  _insert(node, patient){
+    if(!node) return new BSTNode(patient);
+    if(patient.id < node.patient.id) node.left = this._insert(node.left, patient);
+    else node.right = this._insert(node.right, patient);
+    return node;
+  }
+  // returns { found: BSTNode|null, path: BSTNode[] } tracing the recursive descent
+  search(id){
+    const path = [];
+    let cur = this.root;
+    while(cur){
+      path.push(cur);
+      if(id === cur.patient.id) return { found: cur, path };
+      cur = id < cur.patient.id ? cur.left : cur.right;
+    }
+    return { found: null, path };
+  }
+  inorder(){
+    const out = [];
+    const walk = (n) => { if(!n) return; walk(n.left); out.push(n.patient); walk(n.right); };
+    walk(this.root);
+    return out;
+  }
+}
+
+/* ---------------------------- 6. HOSPITAL GRAPH + DIJKSTRA ----------------- */
+const GRAPH_NODES = ['Reception','Triage Room','General OPD','Pathology Lab','Cardiology','Pharmacy'];
+const GRAPH_POS = {
+  'Reception':    {x:450, y:45},
+  'Triage Room':  {x:190, y:150},
+  'General OPD':  {x:710, y:150},
+  'Pathology Lab':{x:450, y:230},
+  'Cardiology':   {x:150, y:325},
+  'Pharmacy':     {x:670, y:325},
+};
+const GRAPH_EDGES = [
+  ['Reception','Triage Room', 5],
+  ['Reception','General OPD', 8],
+  ['Triage Room','Cardiology', 6],
+  ['Triage Room','Pathology Lab', 4],
+  ['General OPD','Pharmacy', 3],
+  ['General OPD','Pathology Lab', 5],
+  ['Cardiology','Pharmacy', 7],
+  ['Pathology Lab','Pharmacy', 2],
+  ['Cardiology','General OPD', 9],
+];
+class HospitalGraph{
+  constructor(nodes, edges){
+    this.adj = {};
+    nodes.forEach(n => this.adj[n] = []);
+    edges.forEach(([a,b,w]) => { this.adj[a].push([b,w]); this.adj[b].push([a,w]); });
+  }
+  dijkstra(start, end){
+    const dist = {}, prev = {}, visited = new Set();
+    Object.keys(this.adj).forEach(n => dist[n] = Infinity);
+    dist[start] = 0;
+    const pq = [[0, start]];
+    while(pq.length){
+      pq.sort((a,b) => a[0]-b[0]);
+      const [d, u] = pq.shift();
+      if(visited.has(u)) continue;
+      visited.add(u);
+      if(u === end) break;
+      for(const [v, w] of this.adj[u]){
+        const nd = d + w;
+        if(nd < dist[v]){ dist[v] = nd; prev[v] = u; pq.push([nd, v]); }
+      }
+    }
+    const path = [];
+    let cur = end;
+    if(dist[end] === Infinity) return { path: [], dist: Infinity };
+    while(cur !== undefined){ path.unshift(cur); cur = prev[cur]; }
+    return { path, dist: dist[end] };
+  }
+}
+const hospitalGraph = new HospitalGraph(GRAPH_NODES, GRAPH_EDGES);
+
+/* ---------------------------- 7. DP: 0/1 KNAPSACK KIT ALLOCATION ---------- */
+function knapsackAllocate(items, budget){
+  const n = items.length;
+  const dp = Array.from({length:n+1}, () => new Array(budget+1).fill(0));
+  for(let i=1;i<=n;i++){
+    const {dpCost:cost, dpUtility:val} = items[i-1];
+    for(let c=0;c<=budget;c++){
+      dp[i][c] = dp[i-1][c];
+      if(cost <= c) dp[i][c] = Math.max(dp[i][c], dp[i-1][c-cost] + val);
+    }
+  }
+  // backtrack
+  const selected = [];
+  let c = budget;
+  for(let i=n;i>0;i--){
+    if(dp[i][c] !== dp[i-1][c]){
+      selected.push(items[i-1]);
+      c -= items[i-1].dpCost;
+    }
+  }
+  return { dp, selected: selected.reverse(), maxValue: dp[n][budget] };
+}
+
+/* ---------------------------- 8. SORTING (Quick / Merge) ------------------ */
+function quickSort(arr, key, desc){
+  if(arr.length <= 1) return arr;
+  const pivot = arr[Math.floor(arr.length/2)][key];
+  const less = [], equal = [], greater = [];
+  for(const item of arr){
+    if(item[key] < pivot) less.push(item);
+    else if(item[key] > pivot) greater.push(item);
+    else equal.push(item);
+  }
+  const sortedAsc = [...quickSort(less,key,desc), ...equal, ...quickSort(greater,key,desc)];
+  return desc ? [...quickSort(greater,key,desc), ...equal, ...quickSort(less,key,desc)] : sortedAsc;
+}
+function mergeSort(arr, key, desc){
+  if(arr.length <= 1) return arr;
+  const mid = Math.floor(arr.length/2);
+  const left = mergeSort(arr.slice(0,mid), key, desc);
+  const right = mergeSort(arr.slice(mid), key, desc);
+  const merged = [];
+  let i=0,j=0;
+  while(i<left.length && j<right.length){
+    const cond = desc ? left[i][key] >= right[j][key] : left[i][key] <= right[j][key];
+    merged.push(cond ? left[i++] : right[j++]);
+  }
+  return [...merged, ...left.slice(i), ...right.slice(j)];
+}
+
+/* ========================================================================
+   APPLICATION STATE
+   ======================================================================== */
+const heap = new PriorityQueueHeap();
+const opdQueue = new StandardQueue();
+const bst = new PatientBST();
+const stack = new ActionStack();
+const allPatients = [];
+const doctors = [
+  { name:'Dr. Chen', specialty:'Cardiology', status:'free', currentPatient:null },
+  { name:'Dr. Patel', specialty:'General Medicine', status:'free', currentPatient:null },
+  { name:'Dr. Nair', specialty:'Emergency', status:'free', currentPatient:null },
+  { name:'Dr. Rao', specialty:'Orthopedics', status:'free', currentPatient:null },
+];
+
+/* ========================================================================
+   RENDER: STATS / DOCTORS / TERMINAL
+   ======================================================================== */
+function updateStats(){
+  const treated = allPatients.filter(p => p.status === 'treated').length;
+  const waiting = heap.size() + opdQueue.size();
+  const waitingPatients = allPatients.filter(p => p.status === 'waiting');
+  const avgWait = waitingPatients.length
+    ? Math.round(waitingPatients.reduce((s,p)=>s+p.estWait,0) / waitingPatients.length)
+    : 0;
+  document.getElementById('statTotal').textContent = allPatients.length;
+  document.getElementById('statTreated').textContent = treated;
+  document.getElementById('statWaiting').textContent = waiting;
+  document.getElementById('statWait').innerHTML = avgWait + '<small>m</small>';
+}
+
+function renderCabins(){
+  const box = document.getElementById('cabinList');
+  box.innerHTML = doctors.map(d => `
+    <div class="cabin-card ${d.status}">
+      <div>
+        <div class="cabin-name">${d.name}</div>
+        <div class="cabin-specialty">${d.specialty}${d.currentPatient ? ' — with ' + d.currentPatient.name : ''}</div>
+      </div>
+      <span class="cabin-status ${d.status}">${d.status === 'free' ? 'Available' : 'In Session'}</span>
+    </div>`).join('');
+}
+
+function renderTerminal(){
+  const box = document.getElementById('terminalLog');
+  box.innerHTML = stack.toArray().slice(0,40).map(e =>
+    `<div><span class="t-time">${e.time.toLocaleTimeString()}</span>${escapeHtml(e.text)}</div>`
+  ).join('');
+}
+function escapeHtml(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function logAction(text){
+  stack.push(text);
+  renderTerminal();
+}
+
+/* ========================================================================
+   RENDER: HEAP (SVG binary tree from array)
+   ======================================================================== */
+const sevColor = s => ({1:'var(--sev-1)',2:'var(--sev-2)',3:'var(--sev-3)',4:'var(--sev-4)',5:'var(--sev-5)'}[s] || 'var(--sev-3)');
+
+function renderHeap(){
+  const svg = document.getElementById('heapSvg');
+  const arr = heap.arr;
+  if(arr.length === 0){ svg.innerHTML = emptyMsg('Heap is empty — register an Emergency patient.'); return; }
+  const levels = Math.floor(Math.log2(arr.length)) + 1;
+  const W = 900, H = 380, topMargin = 40, levelGap = (H-80)/Math.max(levels-1,1);
+  let svgStr = '';
+  const coords = [];
+  for(let i=0;i<arr.length;i++){
+    const level = Math.floor(Math.log2(i+1));
+    const idxInLevel = i - (Math.pow(2,level)-1);
+    const slots = Math.pow(2, level);
+    const x = W * (idxInLevel+1)/(slots+1);
+    const y = topMargin + level*levelGap;
+    coords.push({x,y});
+  }
+  // edges first
+  for(let i=1;i<arr.length;i++){
+    const parent = Math.floor((i-1)/2);
+    svgStr += `<line class="edge-line" x1="${coords[parent].x}" y1="${coords[parent].y}" x2="${coords[i].x}" y2="${coords[i].y}" />`;
+  }
+  // nodes
+  for(let i=0;i<arr.length;i++){
+    const p = arr[i];
+    const rootClass = (i===0 && p.severity===5) ? 'heap-root-pulse' : '';
+    svgStr += `<g class="${rootClass}">
+      <circle class="node-circle" cx="${coords[i].x}" cy="${coords[i].y}" r="24" fill="${sevColor(p.severity)}" fill-opacity="0.22" stroke="${sevColor(p.severity)}" />
+      <text class="node-text" x="${coords[i].x}" y="${coords[i].y-2}">${p.id}</text>
+      <text class="node-sub" x="${coords[i].x}" y="${coords[i].y+11}">S${p.severity}</text>
+    </g>`;
+  }
+  svg.innerHTML = svgStr;
+}
+
+function emptyMsg(msg){
+  return `<text x="450" y="190" text-anchor="middle" fill="var(--text-faint)" font-family="Inter" font-size="13">${msg}</text>`;
+}
+
+/* ========================================================================
+   RENDER: OPD LINKED LIST
+   ======================================================================== */
+function renderList(){
+  const svg = document.getElementById('listSvg');
+  const arr = opdQueue.toArray();
+  if(arr.length === 0){ svg.innerHTML = emptyMsg('OPD queue is empty — register an OPD patient.'); return; }
+  const boxW = 130, gap = 46, startX = 30, y = 90;
+  let svgStr = '';
+  arr.forEach((p, i) => {
+    const x = startX + i*(boxW+gap);
+    svgStr += `<g>
+      <rect x="${x}" y="${y}" width="${boxW}" height="60" rx="10" fill="rgba(56,189,248,0.08)" stroke="var(--blue)" stroke-width="1.5"/>
+      <text class="node-text" x="${x+boxW/2}" y="${y+24}" fill="#e7edf5">#${p.id} ${p.name.split(' ')[0]}</text>
+      <text class="node-sub" x="${x+boxW/2}" y="${y+42}">Sev ${p.severity} · ${p.age}y</text>
+    </g>`;
+    if(i < arr.length-1){
+      const x2 = x + boxW;
+      svgStr += `<line class="edge-line" x1="${x2}" y1="${y+30}" x2="${x2+gap-6}" y2="${y+30}" marker-end="url(#arrow)" />`;
+    }
+  });
+  svgStr = `<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="var(--blue)" /></marker></defs>` + svgStr;
+  svgStr += `<text x="${startX}" y="70" class="node-sub" fill="var(--text-dim)">HEAD</text>`;
+  svg.innerHTML = svgStr;
+}
+
+/* ========================================================================
+   RENDER: BST
+   ======================================================================== */
+function renderBST(highlightPath){
+  const svg = document.getElementById('bstSvg');
+  if(!bst.root){ svg.innerHTML = emptyMsg('BST is empty — register a patient to index by ID.'); return; }
+  // assign x via inorder index, y via depth
+  const positions = new Map();
+  let counter = 0;
+  const totalW = 900;
+  const countNodes = (n) => n ? 1 + countNodes(n.left) + countNodes(n.right) : 0;
+  const total = countNodes(bst.root);
+  const walk = (n, depth) => {
+    if(!n) return;
+    walk(n.left, depth+1);
+    const x = totalW * (counter+1) / (total+1);
+    positions.set(n, { x, y: 50 + depth*70 });
+    counter++;
+    walk(n.right, depth+1);
+  };
+  walk(bst.root, 0);
+
+  let svgStr = '';
+  const drawEdges = (n) => {
+    if(!n) return;
+    const pos = positions.get(n);
+    if(n.left){ const c = positions.get(n.left); svgStr += `<line class="edge-line" x1="${pos.x}" y1="${pos.y}" x2="${c.x}" y2="${c.y}" />`; drawEdges(n.left); }
+    if(n.right){ const c = positions.get(n.right); svgStr += `<line class="edge-line" x1="${pos.x}" y1="${pos.y}" x2="${c.x}" y2="${c.y}" />`; drawEdges(n.right); }
+  };
+  drawEdges(bst.root);
+
+  const highlightSet = new Set(highlightPath || []);
+  positions.forEach((pos, n) => {
+    const isHi = highlightSet.has(n);
+    svgStr += `<g>
+      <circle class="node-circle" cx="${pos.x}" cy="${pos.y}" r="22"
+        fill="${isHi ? 'rgba(56,189,248,0.3)' : 'rgba(45,212,191,0.14)'}"
+        stroke="${isHi ? 'var(--blue)' : 'var(--teal)'}" />
+      <text class="node-text" x="${pos.x}" y="${pos.y+4}">${n.patient.id}</text>
+    </g>`;
+  });
+  svg.innerHTML = svgStr;
+  return positions;
+}
+
+async function traceBstSearch(id){
+  const { found, path } = bst.search(id);
+  const positions = renderBST();
+  if(!positions){ return; }
+  for(const node of path){
+    const pos = positions.get(node);
+    const circle = [...document.querySelectorAll('#bstSvg circle')].find(c =>
+      Math.abs(parseFloat(c.getAttribute('cx')) - pos.x) < 0.5 && Math.abs(parseFloat(c.getAttribute('cy')) - pos.y) < 0.5);
+    if(circle){
+      circle.parentElement.classList.add('node-flash');
+      circle.setAttribute('stroke', 'var(--blue)');
+      circle.setAttribute('fill', 'rgba(56,189,248,0.35)');
+    }
+    await sleep(420);
+  }
+  logAction(found ? `BST search: patient ${id} FOUND in ${path.length} step(s)` : `BST search: patient ${id} NOT FOUND (${path.length} step(s) traced)`);
+}
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+/* ========================================================================
+   RENDER: HOSPITAL GRAPH
+   ======================================================================== */
+function renderGraph(highlightPath){
+  const svg = document.getElementById('graphSvg');
+  const hiEdges = new Set();
+  if(highlightPath){
+    for(let i=0;i<highlightPath.length-1;i++) hiEdges.add(highlightPath[i]+'|'+highlightPath[i+1]);
+  }
+  let svgStr = '';
+  GRAPH_EDGES.forEach(([a,b,w]) => {
+    const pa = GRAPH_POS[a], pb = GRAPH_POS[b];
+    const isHi = hiEdges.has(a+'|'+b) || hiEdges.has(b+'|'+a);
+    svgStr += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}"
+      stroke="${isHi ? 'var(--blue)' : 'rgba(255,255,255,0.18)'}" stroke-width="${isHi?3:1.6}"
+      style="${isHi ? 'filter:drop-shadow(0 0 6px var(--blue));' : ''}" />`;
+    svgStr += `<text class="edge-label" x="${(pa.x+pb.x)/2}" y="${(pa.y+pb.y)/2 - 6}">${w}</text>`;
+  });
+  const hiNodes = new Set(highlightPath || []);
+  GRAPH_NODES.forEach(n => {
+    const p = GRAPH_POS[n];
+    const isHi = hiNodes.has(n);
+    svgStr += `<g>
+      <circle class="node-circle" cx="${p.x}" cy="${p.y}" r="30" fill="${isHi ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.05)'}" stroke="${isHi ? 'var(--blue)' : 'var(--panel-border)'}" />
+      <text class="node-sub" x="${p.x}" y="${p.y+4}" fill="#fff" font-size="10">${n}</text>
+    </g>`;
+  });
+  svg.innerHTML = svgStr;
+}
+
+/* ========================================================================
+   RENDER: DP TABLE
+   ======================================================================== */
+function renderDP(items, budget){
+  const { dp, selected, maxValue } = knapsackAllocate(items, budget);
+  const out = document.getElementById('dpOutput');
+  let html = `<div class="dp-summary">
+    <span class="chip">Budget: ${budget} kits</span>
+    <span class="chip">Patients considered: ${items.length}</span>
+    <span class="chip">Max utility achieved: ${maxValue}</span>
+    <span class="chip">Kits selected: ${selected.length}</span>
+  </div>`;
+  html += `<h3 style="font-family:var(--font-display);font-size:14px;margin:14px 0 6px;">Optimal Allocation</h3>`;
+  html += selected.map(p => `<div class="patient-list-item">
+      <span>#${p.id} ${p.name}</span>
+      <span class="mono-tag">sev ${p.severity} · cost ${p.dpCost} · util ${p.dpUtility}</span>
+    </div>`).join('') || '<p class="panel-sub">No items fit the budget.</p>';
+
+  if(items.length <= 12 && budget <= 20){
+    html += `<h3 style="font-family:var(--font-display);font-size:14px;margin:16px 0 6px;">DP State Table (rows = patients, cols = kit budget)</h3>`;
+    html += '<div style="overflow-x:auto;"><table class="dp-table"><tr><th>i \\ c</th>' +
+      Array.from({length:budget+1},(_,c)=>`<th>${c}</th>`).join('') + '</tr>';
+    for(let i=0;i<dp.length;i++){
+      html += `<tr><th>${i===0?'-':'#'+items[i-1].id}</th>` +
+        dp[i].map((v,c) => `<td class="${i>0 && dp[i][c]!==dp[i-1][c] ? 'selected':''}">${v}</td>`).join('') + '</tr>';
+    }
+    html += '</table></div>';
+  }
+  out.innerHTML = html;
+}
+
+/* ========================================================================
+   RENDER: SORT OUTPUT
+   ======================================================================== */
+function renderSort(key, algo){
+  const desc = key === 'severity';
+  const copy = allPatients.slice();
+  const sorted = algo === 'quick' ? quickSort(copy, key, desc) : mergeSort(copy, key, desc);
+  const out = document.getElementById('sortOutput');
+  if(sorted.length === 0){ out.innerHTML = '<p class="panel-sub">No patient records yet.</p>'; return; }
+  out.innerHTML = `<p class="panel-sub">${algo === 'quick' ? 'Quick Sort' : 'Merge Sort'} by <b>${key}</b> — O(n log n) average.</p>` +
+    sorted.map((p,i) => `<div class="patient-list-item">
+      <span>${i+1}. #${p.id} ${p.name}</span>
+      <span class="mono-tag">${key}: ${p[key] !== undefined ? p[key] : ''}</span>
+    </div>`).join('');
+}
+
+/* ========================================================================
+   EVENT WIRING
+   ======================================================================== */
+function renderActiveTab(){
+  const active = document.querySelector('.tab.active').dataset.tab;
+  if(active === 'heap') renderHeap();
+  else if(active === 'list') renderList();
+  else if(active === 'bst') renderBST();
+  else if(active === 'graph') renderGraph();
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.tab');
+  if(!btn) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  renderActiveTab();
+});
+
+const fSeverity = document.getElementById('fSeverity');
+const severityLabels = {1:'Minor',2:'Low',3:'Moderate',4:'Serious',5:'Critical'};
+fSeverity.addEventListener('input', () => {
+  const v = fSeverity.value;
+  const out = document.getElementById('severityOut');
+  out.textContent = `${v} — ${severityLabels[v]}`;
+  out.className = 'sev-badge sev-' + v;
+});
+
+document.getElementById('patientForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = document.getElementById('fName').value.trim();
+  const age = document.getElementById('fAge').value;
+  const gender = document.getElementById('fGender').value;
+  const symptom = document.getElementById('fSymptom').value.trim();
+  const severity = document.getElementById('fSeverity').value;
+  const queueType = document.getElementById('fQueueType').value;
+  const patient = makePatient(name, age, gender, symptom, severity, queueType);
+
+  if(queueType === 'emergency') heap.insert(patient);
+  else opdQueue.enqueue(patient);
+  bst.insert(patient);
+  allPatients.push(patient);
+
+  logAction(`Registered #${patient.id} ${patient.name} → ${queueType === 'emergency' ? 'Emergency Heap' : 'OPD Queue'} (sev ${patient.severity})`);
+  updateStats();
+  renderActiveTab();
+  e.target.reset();
+  fSeverity.value = 3;
+  document.getElementById('severityOut').textContent = '3 — Moderate';
+  document.getElementById('severityOut').className = 'sev-badge sev-3';
+});
+
+document.getElementById('btnConsult').addEventListener('click', () => {
+  let patient = null;
+  if(!heap.isEmpty()) patient = heap.extractMax();
+  else if(!opdQueue.isEmpty()) patient = opdQueue.dequeue();
+  if(!patient){ logAction('Consult attempted — both queues are empty'); renderTerminal(); return; }
+
+  const doctor = doctors.find(d => d.status === 'free');
+  if(!doctor){ logAction(`#${patient.id} ${patient.name} extracted but no doctor is free — re-queued`); 
+    if(patient.queueType === 'emergency') heap.insert(patient); else opdQueue.enqueue(patient);
+    renderActiveTab(); return;
+  }
+  patient.status = 'in-consult';
+  patient.doctorAssigned = doctor.name;
+  doctor.status = 'busy';
+  doctor.currentPatient = patient;
+  logAction(`${doctor.name} is now consulting #${patient.id} ${patient.name}`);
+  renderCabins(); updateStats(); renderActiveTab();
+
+  setTimeout(() => {
+    patient.status = 'treated';
+    doctor.status = 'free';
+    doctor.currentPatient = null;
+    logAction(`#${patient.id} ${patient.name} treated & discharged by ${doctor.name}`);
+    renderCabins(); updateStats();
+  }, 4000);
+});
+
+document.getElementById('btnUndo').addEventListener('click', () => {
+  const popped = stack.pop();
+  if(!popped){ return; }
+  renderTerminal();
+  logAction(`Undo: cleared log entry — "${popped.text}"`);
+});
+
+document.getElementById('btnBstSearch').addEventListener('click', () => {
+  const id = parseInt(document.getElementById('bstSearchId').value, 10);
+  if(!id) return;
+  traceBstSearch(id);
+});
+
+const graphDest = document.getElementById('graphDest');
+GRAPH_NODES.filter(n => n !== 'Reception').forEach(n => {
+  const opt = document.createElement('option'); opt.value = n; opt.textContent = n;
+  graphDest.appendChild(opt);
+});
+document.getElementById('btnGraphRoute').addEventListener('click', () => {
+  const dest = graphDest.value;
+  const { path, dist } = hospitalGraph.dijkstra('Reception', dest);
+  renderGraph(path);
+  document.getElementById('graphResult').textContent = path.length
+    ? `${path.join(' → ')}  (distance: ${dist})`
+    : 'No path found';
+  logAction(`Dijkstra: Reception → ${dest} = ${dist} units via ${path.join(' > ')}`);
+});
+
+document.getElementById('btnDpRun').addEventListener('click', () => {
+  const budget = Math.max(1, parseInt(document.getElementById('dpBudget').value, 10) || 10);
+  const items = allPatients.length ? allPatients.filter(p => p.status !== 'treated') : demoPatients();
+  renderDP(items, budget);
+  logAction(`DP Knapsack: allocated kits across ${items.length} patients with budget ${budget}`);
+});
+
+document.getElementById('btnSortRun').addEventListener('click', () => {
+  renderSort(document.getElementById('sortKey').value, document.getElementById('sortAlgo').value);
+  logAction(`Sorted patient records by ${document.getElementById('sortKey').value} using ${document.getElementById('sortAlgo').value === 'quick' ? 'Quick Sort' : 'Merge Sort'}`);
+});
+
+function demoPatients(){
+  return [
+    makePatient('Amit Sharma',45,'Male','Fracture',3,'opd'),
+    makePatient('Priya Singh',29,'Female','Chest pain',5,'emergency'),
+    makePatient('Rohan Das',62,'Male','Breathing difficulty',4,'emergency'),
+    makePatient('Sneha Rao',8,'Female','Fever',2,'opd'),
+    makePatient('Vikram Iyer',34,'Male','Laceration',3,'opd'),
+    makePatient('Anjali Nair',71,'Female','Stroke symptoms',5,'emergency'),
+  ];
+}
+
+/* ---------------------------- INITIAL RENDER ------------------------------ */
+renderCabins();
+renderTerminal();
+updateStats();
+renderHeap();
+logAction('System initialized — 4 doctor cabins online');
+
+</script>
+</body>
+</html>

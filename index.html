@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PulseCare — Hospital Queue Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== HEADER / LIVE STATS ===================== -->
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-pulse">
+      <svg viewBox="0 0 60 24" class="ekg"><polyline points="0,12 12,12 16,3 20,21 24,12 60,12" /></svg>
+    </span>
+    <div class="brand-text">
+      <h1>PulseCare</h1>
+      <p>Hospital Queue Management System <span class="dsa-tag">— DSA Visualizer</span></p>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><span class="stat-value" id="statTotal">0</span><span class="stat-label">Registered</span></div>
+    <div class="stat"><span class="stat-value" id="statTreated">0</span><span class="stat-label">Treated</span></div>
+    <div class="stat"><span class="stat-value" id="statWaiting">0</span><span class="stat-label">Waiting</span></div>
+    <div class="stat"><span class="stat-value" id="statWait">0<small>m</small></span><span class="stat-label">Avg. Wait</span></div>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ===================== LEFT: INTAKE + DOCTORS ===================== -->
+  <section class="col col-left">
+
+    <div class="panel" id="intakeDesk">
+      <h2 class="panel-title">Triage Intake Desk</h2>
+      <p class="panel-sub">Registers into the Emergency Max-Heap or the OPD Linked-List Queue, and indexes the patient in the BST.</p>
+      <form id="patientForm" class="form-grid">
+        <label>Name<input type="text" id="fName" placeholder="e.g. Ravi Kumar" required></label>
+        <label>Age<input type="number" id="fAge" min="0" max="120" placeholder="34" required></label>
+        <label>Gender
+          <select id="fGender"><option>Male</option><option>Female</option><option>Other</option></select>
+        </label>
+        <label>Symptom<input type="text" id="fSymptom" placeholder="Chest pain" required></label>
+        <label>Queue Type
+          <select id="fQueueType">
+            <option value="emergency">Emergency (Priority Heap)</option>
+            <option value="opd">OPD (FIFO Queue)</option>
+          </select>
+        </label>
+        <label id="severityWrap">Severity (1–5)
+          <input type="range" id="fSeverity" min="1" max="5" value="3">
+          <span id="severityOut" class="sev-badge sev-3">3 — Moderate</span>
+        </label>
+        <button type="submit" class="btn btn-primary full-span">Register Patient</button>
+      </form>
+      <div class="action-row">
+        <button id="btnConsult" class="btn btn-accent">Consult Next Patient</button>
+        <button id="btnUndo" class="btn btn-ghost">Undo Last Action</button>
+      </div>
+    </div>
+
+    <div class="panel" id="doctorPanel">
+      <h2 class="panel-title">Doctor Cabins</h2>
+      <div class="cabins" id="cabinList"></div>
+    </div>
+
+    <div class="panel" id="historyPanel">
+      <h2 class="panel-title">History Terminal <span class="mono-tag">ActionStack</span></h2>
+      <p class="panel-sub">push() / pop() log of every operation, most recent first.</p>
+      <div class="terminal" id="terminalLog"></div>
+    </div>
+
+  </section>
+
+  <!-- ===================== RIGHT: VISUALIZER ARENA ===================== -->
+  <section class="col col-right">
+    <div class="panel visualizer">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="heap">Emergency Heap</button>
+        <button class="tab" data-tab="list">OPD Linked List</button>
+        <button class="tab" data-tab="bst">Patient BST</button>
+        <button class="tab" data-tab="graph">Hospital Map</button>
+        <button class="tab" data-tab="dp">Kit Allocation (DP)</button>
+        <button class="tab" data-tab="sort">Sort Records</button>
+      </div>
+
+      <div class="tab-panel active" id="panel-heap">
+        <p class="panel-sub">Binary Max-Heap on severity + arrival order. Array-backed. O(log n) insert / extract.</p>
+        <svg id="heapSvg" class="viz-svg" viewBox="0 0 900 380"></svg>
+      </div>
+
+      <div class="tab-panel" id="panel-list">
+        <p class="panel-sub">Singly Linked List — FIFO OPD registration queue. O(1) enqueue/dequeue at head/tail.</p>
+        <svg id="listSvg" class="viz-svg" viewBox="0 0 900 220"></svg>
+      </div>
+
+      <div class="tab-panel" id="panel-bst">
+        <p class="panel-sub">Binary Search Tree indexed by Patient ID for O(log n) lookup.</p>
+        <div class="bst-controls">
+          <input type="number" id="bstSearchId" placeholder="Patient ID e.g. 1001">
+          <button id="btnBstSearch" class="btn btn-accent">Trace Search</button>
+        </div>
+        <svg id="bstSvg" class="viz-svg" viewBox="0 0 900 380"></svg>
+      </div>
+
+      <div class="tab-panel" id="panel-graph">
+        <p class="panel-sub">Hospital navigation graph — Dijkstra's shortest path from Reception.</p>
+        <div class="bst-controls">
+          <select id="graphDest"></select>
+          <button id="btnGraphRoute" class="btn btn-accent">Find Shortest Path</button>
+          <span id="graphResult" class="mono-tag"></span>
+        </div>
+        <svg id="graphSvg" class="viz-svg" viewBox="0 0 900 380"></svg>
+      </div>
+
+      <div class="tab-panel" id="panel-dp">
+        <p class="panel-sub">0/1 Knapsack DP — allocate limited medical kits to maximize total patient utility.</p>
+        <div class="bst-controls">
+          <label>Budget (kits)<input type="number" id="dpBudget" value="10" min="1" max="30"></label>
+          <button id="btnDpRun" class="btn btn-accent">Run Allocation</button>
+        </div>
+        <div id="dpOutput"></div>
+      </div>
+
+      <div class="tab-panel" id="panel-sort">
+        <p class="panel-sub">Sort the patient records database using Quick Sort or Merge Sort.</p>
+        <div class="bst-controls">
+          <select id="sortKey"><option value="severity">Severity</option><option value="age">Age</option><option value="id">Patient ID</option></select>
+          <select id="sortAlgo"><option value="quick">Quick Sort</option><option value="merge">Merge Sort</option></select>
+          <button id="btnSortRun" class="btn btn-accent">Sort Records</button>
+        </div>
+        <div id="sortOutput"></div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>PulseCare DSA Visualizer &middot; 11 core Data Structures &amp; Algorithms &middot; Built for course presentation</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
